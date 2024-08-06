@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use risc0_zkvm::{
-    ApiClient, Asset, AssetRequest, ProverOpts, ReceiptClaim, Segment, SuccinctReceipt,
+    ProverOpts, ReceiptClaim, Segment, SuccinctReceipt,
+    VerifierContext, get_prover_server,
 };
 
 use crate::task::{Job, JobKind};
@@ -42,18 +43,12 @@ impl workerpool::Worker for Worker {
 impl Worker {
     fn prove_and_lift(&self, segment: Segment) -> SuccinctReceipt<ReceiptClaim> {
         let opts = ProverOpts::default();
-        let client = ApiClient::new().unwrap();
-        let segment = bincode::serialize(&segment).unwrap();
+        let prover = get_prover_server(&opts).unwrap();
 
-        let segment_asset = Asset::Inline(segment.into());
-        let segment_receipt = client
-            .prove_segment(&opts, segment_asset, AssetRequest::Inline)
-            .unwrap();
+        let ctx = VerifierContext::default();
+        let receipt = prover.prove_segment(&ctx, &segment).unwrap();
 
-        let segment_receipt_asset = segment_receipt.try_into().unwrap();
-        client
-            .lift(&opts, segment_receipt_asset, AssetRequest::Inline)
-            .unwrap()
+        prover.lift(&receipt).unwrap()
     }
 
     fn join(
@@ -62,11 +57,8 @@ impl Worker {
         right: SuccinctReceipt<ReceiptClaim>,
     ) -> SuccinctReceipt<ReceiptClaim> {
         let opts = ProverOpts::default();
-        let client = ApiClient::new().unwrap();
-        let left_asset = left.try_into().unwrap();
-        let right_asset = right.try_into().unwrap();
-        client
-            .join(&opts, left_asset, right_asset, AssetRequest::Inline)
-            .unwrap()
+        let prover = get_prover_server(&opts).unwrap();
+
+        prover.join( &left, &right).unwrap()
     }
 }
