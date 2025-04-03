@@ -1,6 +1,6 @@
 use dag_core::{Inputs, Outputs};
 use dag_methods::{IPFS_DAG_ELF, IPFS_DAG_ID};
-use risc0_zkvm::{ExecutorEnv, ExecutorImpl, NullSegmentRef, Receipt, InnerReceipt};
+use risc0_zkvm::{ExecutorEnv, ExecutorImpl, NullSegmentRef, Receipt, InnerReceipt, default_prover};
 
 mod plan;
 mod task;
@@ -15,11 +15,31 @@ fn main() {
         data: data.to_string(),
         root_cid: "bafybeib5ouhpwnzbzdtgfobnyv4kuj4moofw3kngqu2svgdm4ttpe56lpe".to_string(),
     };
-    let outputs = custom_exec(&inputs);
+    let outputs = default_exec(&inputs);
     println!();
     println!("  {:?}", outputs.hash);
 }
 
+fn default_exec(inputs: &Inputs) -> Outputs {
+    // Obtain the default prover.
+    let prover = default_prover();
+
+    let env = ExecutorEnv::builder()
+        .write(&inputs)
+        .unwrap()
+        .segment_limit_po2(16)
+        .build()
+        .unwrap();
+
+    let receipt = prover.prove(env, IPFS_DAG_ELF).unwrap().receipt;
+    receipt.verify(IPFS_DAG_ID).unwrap();
+    println!("Receipt verified!");
+
+    receipt.journal.decode().unwrap()
+}
+
+#[allow(dead_code)]
+/// This function is used to run the executor with a custom execution plan.
 fn custom_exec(inputs: &Inputs) -> Outputs {
     let mut planner = Planner::default();
     let mut task_manager = TaskManager::new();
