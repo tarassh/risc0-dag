@@ -27,7 +27,7 @@ fn custom_exec(inputs: &Inputs) -> Outputs {
     let env = ExecutorEnv::builder()
         .write(&inputs)
         .unwrap()
-        .segment_limit_po2(17)
+        .segment_limit_po2(16)
         .build()
         .unwrap();
 
